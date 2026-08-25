@@ -55,7 +55,6 @@ function M.open(opts)
   opts = opts or {}
   local id = opts.id
   id = (id ~= nil and id > 0) and id or nil
-  print(opts.id)
   local has_id = id ~= nil
   local curr_win = vim.api.nvim_get_current_win()
   local curr_buf = vim.api.nvim_get_current_buf()
@@ -93,26 +92,40 @@ function M.open(opts)
   return targ_term
 end
 
--- ---Closes a terminal by ID or based on the current buffer
--- ---@param opts? { id?: integer, silent?: boolean } Dicionário de opções
--- function M.close(opts)
---   opts = opts or {}
---   local id = opts.id
---   id = (id ~= nil and id > 0) and id or nil
---   local curr_buf = vim.api.nvim_get_current_buf()
---   local curr_term = M.find_by_buf(curr_buf)
---   local targ_term = nil
---
---   if id then
---     targ_term = M._terminals[id]
---   elseif curr_term then
---     targ_term = curr_term
---   end
---
---   if targ_term then
---     targ_term:close()
---   end
--- end
+---Closes a terminal by ID or based on the current buffer
+---@param opts? { id?: integer } Dicionário de opções
+function M.close(opts)
+  opts = opts or {}
+  local id = opts.id
+  id = (id ~= nil and id > 0) and id or nil
+  local has_id = id ~= nil
+  local curr_win = vim.api.nvim_get_current_win()
+  local curr_buf = vim.api.nvim_get_current_buf()
+  local curr_term = M.find_by_buf(curr_buf)
+  local targ_term = nil
+
+  if has_id then
+    targ_term = M._terminals[id]
+
+    if not targ_term or not targ_term:is_open() then
+      return false
+    else
+      ---TODO: give the user the possibility to choose between close all or only one window
+      targ_term:close()
+
+      return true
+    end
+  end
+
+  if curr_term then
+    curr_term:close({ win = curr_win })
+
+    return true
+  end
+
+  ---TODO: give the user the possibility to choose wich window to close
+  return false
+end
 
 -- ---Toggles terminal visibility by ID or based on the current buffer
 -- ---@param id? integer ID do terminal
@@ -154,12 +167,10 @@ end
 --   end
 --
 --   if #active_terminals > 0 then
---     print("implementar resposta quando há terminais ativos")
 --     return
 --   end
 --
 --   if #M._terminals > 0 then
---     print("implementar resposta quando não há terminais ativos")
 --     M._terminals[#M._terminals]:open()
 --     return
 --   end

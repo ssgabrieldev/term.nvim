@@ -155,17 +155,26 @@ end
 --   end
 -- end
 
-function Terminal:close()
+---Hides the terminal by closing or unlinking the window without destroying the buffer
+---@param opts? { win?: integer }
+function Terminal:close(opts)
+  opts = opts or {}
   ---@diagnostic disable-next-line: unused-local
-  for i, w in ipairs(self.wins) do
-    vim.api.nvim_win_close(w, true)
+  for i, win in ipairs(self.wins) do
+    if not opts.win or opts.win == win then
+      vim.api.nvim_win_close(win, true)
 
-    if vim.bo.filetype == "term-nvim" then
-      vim.cmd("stopinsert")
+      if vim.bo.filetype == "term-nvim" then
+        vim.cmd("stopinsert")
+      end
     end
   end
 
-  self.wins = {}
+  if opts.win then
+    self:win_remove(opts.win)
+  else
+    self.wins = {}
+  end
 end
 
 function Terminal:toggle()
