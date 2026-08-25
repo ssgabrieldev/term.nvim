@@ -5,9 +5,6 @@ local keymap_set = vim.keymap.set
 -- Adiciona a pasta 'lua/' do diretório atual ao runtime path do Neovim
 vim.opt.rtp:append(".")
 
--- Carrega o arquivo de plugin manualmente para registrar os comandos
-vim.cmd("runtime plugin/term.lua")
-
 print("Ambiente de teste isolado para o term.nvim carregado com sucesso!")
 
 vim.g.mapleader = ";"
@@ -160,9 +157,9 @@ end, { desc = 'Restart Neovim' })
 local term = require("term")
 term.setup()
 
-keymap_set({ "n", "t" }, "<leader>tt", function()
-  term.toggle(vim.v.count)
-end, { silent = false, desc = "Toggle terminal" })
-keymap_set({ "n", "t" }, "<leader>tn", function()
-  term.new()
-end, { silent = true, desc = "Create terminal" })
+keymap_set({ "n", "t" }, "<leader>to", function()
+  term.open({ id = vim.v.count })
+end, { silent = false, desc = "Open terminal" })
+keymap_set({ "n", "t" }, "<leader>tc", function()
+  term.close({ id = vim.v.count })
+end, { silent = false, desc = "Close terminal" })
