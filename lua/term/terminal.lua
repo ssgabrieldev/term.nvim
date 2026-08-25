@@ -3,7 +3,7 @@ local vim = vim
 ---@class Terminal
 ---@field id number Unique numeric identifier of the terminal
 ---@field buf number|nil ID of the terminal buffer
----@field win number|nil ID of the current window
+---@field wins number[] List containing the ID of windows
 ---@field job number|nil ID of the terminal job/process
 ---@field cmd string Executed command
 local Terminal = {}
@@ -17,7 +17,7 @@ function Terminal:new(opts)
   local instance = {
     id = opts.id or 1,
     buf = nil,
-    win = nil,
+    wins = {},
     job = nil,
     cmd = opts.cmd or vim.o.shell,
   }
@@ -27,7 +27,7 @@ end
 
 ---@return boolean
 function Terminal:is_open()
-  return self.win ~= nil and vim.api.nvim_win_is_valid(self.win)
+  return self.wins[1] ~= nil and vim.api.nvim_win_is_valid(self.wins[1])
 end
 
 ---Creates or opens the terminal in a specific window or in a split
@@ -37,18 +37,17 @@ function Terminal:open(opts)
   local target_win = opts.win
   local has_target_win = target_win and vim.api.nvim_win_is_valid(target_win)
 
-  -- 1. If a target window was specified and is valid, focus on it
   if self.buf and vim.api.nvim_buf_is_valid(self.buf) then
     if has_target_win then
-      self.win = target_win
+      self.wins[1] = target_win
 
-      vim.api.nvim_win_set_buf(self.win, self.buf)
+      vim.api.nvim_win_set_buf(self.wins[1], self.buf)
       vim.api.nvim_set_current_win(target_win)
     elseif not self:is_open() then
       vim.cmd("bo split")
 
-      self.win = vim.api.nvim_get_current_win()
-      vim.api.nvim_win_set_buf(self.win, self.buf)
+      self.wins[1] = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_buf(self.wins[1], self.buf)
     end
   else
     self.buf = vim.api.nvim_create_buf(false, false)
@@ -56,16 +55,16 @@ function Terminal:open(opts)
     vim.bo[self.buf].buflisted = false
 
     if has_target_win then
-      self.win = target_win
+      self.wins[1] = target_win
 
-      vim.api.nvim_set_current_win(self.win)
+      vim.api.nvim_set_current_win(self.wins[1])
     else
       vim.cmd("bo split")
 
-      self.win = vim.api.nvim_get_current_win()
+      self.wins[1] = vim.api.nvim_get_current_win()
     end
 
-    vim.api.nvim_win_set_buf(self.win, self.buf)
+    vim.api.nvim_win_set_buf(self.wins[1], self.buf)
 
     self.job = vim.fn.termopen(self.cmd, {
       on_exit = function()
@@ -87,18 +86,17 @@ function Terminal:close(opts)
 
   if self:is_open() then
     if not opts.silent then
-      vim.api.nvim_win_close(self.win, true)
+      vim.api.nvim_win_close(self.wins[1], true)
 
       if vim.bo.filetype == "term-nvim" then
         vim.cmd("stopinsert")
       end
     end
 
-    self.win = nil
+    self.wins = {}
   end
 end
 
----Toggles between showing and hiding the terminal
 function Terminal:toggle()
   if self:is_open() then
     self:close()
