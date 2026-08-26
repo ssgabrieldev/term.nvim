@@ -4,7 +4,6 @@ local vim = vim
 ---@class Terminal
 ---@field id integer Unique numeric identifier of the terminal
 ---@field buf integer|nil ID of the terminal buffer
----@field wins integer[] List containing the ID of windows
 ---@field job integer|nil ID of the terminal job/process
 ---@field cmd string Executed command
 local Terminal = {}
@@ -18,7 +17,6 @@ function Terminal:new(opts)
   local instance = {
     id = opts.id or 1,
     buf = nil,
-    wins = {},
     job = nil,
     cmd = opts.cmd or vim.o.shell,
   }
@@ -26,47 +24,28 @@ function Terminal:new(opts)
   return instance
 end
 
----@return boolean
-function Terminal:is_open()
-  return self.wins[1] ~= nil and vim.api.nvim_win_is_valid(self.wins[1])
-end
+---@return integer[] List containing the ID of windows with terminal buffer
+function Terminal:wins()
+  local all_windows = vim.api.nvim_tabpage_list_wins(0)
+  local wins = {}
 
----Adds a window to the terminal"s window list if valid and not already present
----@param win integer window ID
----@return boolean true if added successfully, false otherwise
-function Terminal:window_add(win)
-  if not win or not vim.api.nvim_win_is_valid(win) then
-    return false
-  end
-
-  if vim.tbl_contains(self.wins, win) then
-    return false
-  end
-
-  table.insert(self.wins, win)
-  return true
-end
-
----Removes a window from the terminal"s window list if present
----@param win integer window ID
----@return boolean true if removed successfully, false otherwise
-function Terminal:win_remove(win)
-  if not win then
-    return false
-  end
-
-  for i, w in ipairs(self.wins) do
-    if w == win then
-      table.remove(self.wins, i)
-      return true
+  ---@diagnostic disable-next-line: unused-local
+  for i, win in ipairs(all_windows) do
+    if self.buf == vim.api.nvim_win_get_buf(win) then
+      table.insert(wins, win)
     end
   end
 
-  return false
+  return wins
+end
+
+---@return boolean
+function Terminal:is_open()
+  return #self:wins() > 0
 end
 
 ---Creates or opens the terminal in a specific window or in a split
----@param opts? { win?: integer } Target window ID
+---@param opts? { win?: integer, create_win?: boolean } Target window ID
 function Terminal:open(opts)
   opts = opts or {}
   local target_win = opts.win
@@ -74,15 +53,15 @@ function Terminal:open(opts)
 
   if self.buf and vim.api.nvim_buf_is_valid(self.buf) then
     if has_target_win and target_win then
-      self:window_add(target_win)
-
       vim.api.nvim_win_set_buf(target_win, self.buf)
       vim.api.nvim_set_current_win(target_win)
     elseif not self:is_open() then
-      vim.cmd("bo split")
-      target_win = vim.api.nvim_get_current_win()
+      target_win = vim.api.nvim_open_win(self.buf, true, {
+        split = "below",
+        vertical = false,
+        win = -1,
+      })
 
-      self:window_add(target_win)
       vim.api.nvim_win_set_buf(target_win, self.buf)
     end
   else
@@ -91,38 +70,16 @@ function Terminal:open(opts)
     vim.bo[self.buf].buflisted = false
 
     if has_target_win and target_win then
-      self:window_add(target_win)
-
       vim.api.nvim_set_current_win(target_win)
     else
-      vim.cmd("bo split")
-      target_win = vim.api.nvim_get_current_win()
-
-      self:window_add(target_win)
+      target_win = vim.api.nvim_open_win(self.buf, true, {
+        split = "below",
+        vertical = false,
+        win = -1,
+      })
     end
 
     vim.api.nvim_win_set_buf(target_win, self.buf)
-
-    vim.api.nvim_create_autocmd({ "WinEnter", "WinLeave", "BufWinEnter", "BufWinLeave" }, {
-      buffer = self.buf,
-      callback = function()
-        local wins_with_buf = utils.list_wins_by_buf(self.buf)
-
-        ---@diagnostic disable-next-line: unused-local
-        for i, win in ipairs(wins_with_buf) do
-          if not vim.tbl_contains(self.wins, win) then
-            self:window_add(win)
-          end
-        end
-
-        ---@diagnostic disable-next-line: unused-local
-        for i, win in ipairs(self.wins) do
-          if not vim.tbl_contains(wins_with_buf, win) then
-            self:win_remove(win)
-          end
-        end
-      end
-    })
 
     self.job = vim.fn.termopen(self.cmd, {
       on_exit = function()
@@ -134,33 +91,16 @@ function Terminal:open(opts)
     })
   end
 
+  vim.cmd("stopinsert")
   vim.cmd("startinsert")
 end
-
--- ---Hides the terminal by closing or unlinking the window without destroying the buffer
--- ---@param opts? { silent?: boolean }
--- function Terminal:close(opts)
---   opts = opts or {}
---
---   if self:is_open() then
---     if not opts.silent then
---       vim.api.nvim_win_close(self.wins[1], true)
---
---       if vim.bo.filetype == "term-nvim" then
---         vim.cmd("stopinsert")
---       end
---     end
---
---     self.wins = {}
---   end
--- end
 
 ---Hides the terminal by closing or unlinking the window without destroying the buffer
 ---@param opts? { win?: integer }
 function Terminal:close(opts)
   opts = opts or {}
-  ---@diagnostic disable-next-line: unused-local
-  for i, win in ipairs(self.wins) do
+
+  for _, win in ipairs(self:wins()) do
     if not opts.win or opts.win == win then
       vim.api.nvim_win_close(win, true)
 
@@ -168,12 +108,6 @@ function Terminal:close(opts)
         vim.cmd("stopinsert")
       end
     end
-  end
-
-  if opts.win then
-    self:win_remove(opts.win)
-  else
-    self.wins = {}
   end
 end
 

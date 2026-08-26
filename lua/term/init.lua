@@ -8,6 +8,10 @@ local M = {}
 M._terminals = {}
 
 ---Internal table to map the numeric ID to its respective Terminal instance
+---@type table<Terminal>
+M._togglable_terminals = {}
+
+---Internal table to map the numeric ID to its respective Terminal instance
 ---@return integer
 local function get_available_id()
   local id = 1
@@ -53,9 +57,7 @@ end
 ---@return Terminal
 function M.open(opts)
   opts = opts or {}
-  local id = opts.id
-  id = (id ~= nil and id > 0) and id or nil
-  local has_id = id ~= nil
+  local id = (opts.id ~= nil and opts.id > 0) and opts.id or nil
   local curr_win = vim.api.nvim_get_current_win()
   local curr_buf = vim.api.nvim_get_current_buf()
   local curr_term = M.find_by_buf(curr_buf)
@@ -65,7 +67,7 @@ function M.open(opts)
     active_only = true,
   })
 
-  if has_id then
+  if id then
     targ_term = M._terminals[id]
   end
 
@@ -79,15 +81,16 @@ function M.open(opts)
     curr_term = active_terminals[1]
 
     if curr_term then
-      targ_win = curr_term.wins[1]
+      targ_win = curr_term:wins()[1]
     end
   end
 
-  if curr_term and targ_win then
-    curr_term:win_remove(targ_win)
-  end
-
+  targ_win = opts.win or targ_win
   targ_term:open({ win = targ_win })
+
+  if #active_terminals == 0 then
+    vim.cmd("wincmd J")
+  end
 
   return targ_term
 end
@@ -96,15 +99,13 @@ end
 ---@param opts? { id?: integer } Dicionário de opções
 function M.close(opts)
   opts = opts or {}
-  local id = opts.id
-  id = (id ~= nil and id > 0) and id or nil
-  local has_id = id ~= nil
+  local id = (opts.id ~= nil and opts.id > 0) and opts.id or nil
   local curr_win = vim.api.nvim_get_current_win()
   local curr_buf = vim.api.nvim_get_current_buf()
   local curr_term = M.find_by_buf(curr_buf)
   local targ_term = nil
 
-  if has_id then
+  if id then
     targ_term = M._terminals[id]
 
     if not targ_term or not targ_term:is_open() then
@@ -127,63 +128,41 @@ function M.close(opts)
   return false
 end
 
--- ---Toggles terminal visibility by ID or based on the current buffer
--- ---@param id? integer ID do terminal
--- function M.toggle(id)
---   id = (id ~= nil and id > 0) and id or nil
---   local has_id = id ~= nil and id > 0
---   local curr_buf = vim.api.nvim_get_current_buf()
---   local curr_win = vim.api.nvim_get_current_win()
---   local curr_term = M.find_by_buf(curr_buf)
---   local targ_term = nil
---   local active_terminals = M.list({
---     active_only = true
---   })
---
---   if has_id then
---     targ_term = M._terminals[id]
---   end
---
---   if curr_term then
---     if not has_id then
---       curr_term:close()
---
---       return
---     elseif targ_term and targ_term.id == curr_term.id then
---       curr_term:close()
---
---       return
---     end
---
---     curr_term:close({ silent = true })
---
---     if not targ_term then
---       targ_term = M.new({ id = id })
---     end
---
---     targ_term:open({ win = curr_win })
---
---     return
---   end
---
---   if #active_terminals > 0 then
---     return
---   end
---
---   if #M._terminals > 0 then
---     M._terminals[#M._terminals]:open()
---     return
---   end
---
---   if not targ_term then
---     targ_term = M.new({ id = id })
---     targ_term:open()
---
---     return
---   end
---
---   targ_term:open()
--- end
+---Toggles terminal visibility by ID or based on the current buffer
+---@param opts { id?:  integer }
+function M.toggle(opts)
+  opts = opts or {}
+  local id = (opts.id ~= nil and opts.id > 0) and opts.id or nil
+  local targ_term = nil
+
+  print(id)
+  if id then
+    targ_term = M._terminals[id]
+
+    if targ_term and targ_term:is_open() then
+      M.close({ id = id })
+    else
+      M.open({ id = id })
+    end
+  elseif #M._terminals < 1 then
+    M.open()
+  else
+    local active_terminals = M.list({ active_only = true })
+    local close = #active_terminals > 0
+
+    if close then
+      M._togglable_terminals = active_terminals
+    end
+
+    for _, term in ipairs(M._togglable_terminals) do
+      if close then
+        term:close()
+      else
+        term:open()
+      end
+    end
+  end
+end
 
 ---Create new terminal
 ---@param opts? { cmd?: string, id?: integer }
