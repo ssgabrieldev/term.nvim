@@ -46,10 +46,15 @@ function Terminal:is_open()
 end
 
 ---Creates or opens the terminal in a specific window or in a split
----@param opts? { win?: integer, create_win?: boolean } Target window ID
+---@param opts? { win?: integer, create_win?: boolean, split?: string } Target window ID
 function Terminal:open(opts)
   opts = opts or {}
   local target_win = opts.win
+  local split = opts.split or "below"
+  local split_config = {
+    split = split,
+    vertical = split == "right",
+  }
   local has_target_win = target_win and vim.api.nvim_win_is_valid(target_win)
 
   if self.buf and vim.api.nvim_buf_is_valid(self.buf) then
@@ -57,11 +62,11 @@ function Terminal:open(opts)
       vim.api.nvim_win_set_buf(target_win, self.buf)
       vim.api.nvim_set_current_win(target_win)
     elseif not self:is_open() then
-      target_win = vim.api.nvim_open_win(self.buf, true, {
-        split = "below",
-        vertical = false,
-        win = -1,
-      })
+      target_win = vim.api.nvim_open_win(self.buf, true, split_config)
+
+      if split == "below" then
+        vim.cmd("wincmd J")
+      end
 
       vim.api.nvim_win_set_buf(target_win, self.buf)
     end
@@ -73,11 +78,11 @@ function Terminal:open(opts)
     if has_target_win and target_win then
       vim.api.nvim_set_current_win(target_win)
     else
-      target_win = vim.api.nvim_open_win(self.buf, true, {
-        split = "below",
-        vertical = false,
-        win = -1,
-      })
+      target_win = vim.api.nvim_open_win(self.buf, true, split_config)
+
+      if split == "below" then
+        vim.cmd("wincmd J")
+      end
     end
 
     vim.api.nvim_win_set_buf(target_win, self.buf)

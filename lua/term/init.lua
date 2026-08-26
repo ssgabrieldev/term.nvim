@@ -153,11 +153,14 @@ function M.toggle(opts)
       M._togglable_terminals = active_terminals
     end
 
-    for _, term in ipairs(M._togglable_terminals) do
+    for i, term in ipairs(M._togglable_terminals) do
       if close then
         term:close()
       else
-        term:open()
+        if i > 1 then
+          vim.cmd("wincmd b")
+        end
+        term:open({ split = (i == 1) and "below" or "right" })
       end
     end
   end
