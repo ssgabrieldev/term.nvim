@@ -5,11 +5,12 @@ local vim = vim
 ---@field buf integer|nil ID of the terminal buffer
 ---@field job integer|nil ID of the terminal job/process
 ---@field cmd string Executed command
+---@field on_exit function Job exit callback
 local Terminal = {}
 Terminal.__index = Terminal
 
 ---Constructor to create a new Terminal instance using a parameter dictionary
----@param opts { id: integer, cmd?: string } Terminal configuration dictionary
+---@param opts { id: integer, cmd?: string, on_exit?: function } Terminal configuration dictionary
 ---@return Terminal
 function Terminal:new(opts)
   opts = opts or {}
@@ -18,6 +19,7 @@ function Terminal:new(opts)
     buf = nil,
     job = nil,
     cmd = opts.cmd or vim.o.shell,
+    on_exit = opts.on_exit or function() end
   }
   setmetatable(instance, self)
   return instance
@@ -84,8 +86,7 @@ function Terminal:open(opts)
       on_exit = function()
         self:close()
 
-        self.job = nil
-        self.buf = nil
+        self:on_exit(self)
       end,
     })
   end

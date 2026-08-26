@@ -135,7 +135,6 @@ function M.toggle(opts)
   local id = (opts.id ~= nil and opts.id > 0) and opts.id or nil
   local targ_term = nil
 
-  print(id)
   if id then
     targ_term = M._terminals[id]
 
@@ -179,6 +178,9 @@ function M.new(opts)
   local term = Terminal:new({
     id = id,
     cmd = opts.cmd,
+    on_exit = function(term)
+      table.remove(M._terminals, term.id)
+    end
   })
 
   M._terminals[term.id] = term
