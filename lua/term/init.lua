@@ -5,22 +5,53 @@ local M = {}
 
 ---Internal table to map the numeric ID to its respective Terminal instance
 ---@type table<integer, Terminal>
-M._terminals = {}
+local _terminals = {}
 
----Internal table to map the numeric ID to its respective Terminal instance
+---Internal table to save last openeds terminals
 ---@type table<Terminal>
-M._togglable_terminals = {}
+local _togglable_terminals = {}
 
 ---Internal table to map the numeric ID to its respective Terminal instance
 ---@return integer
 local function get_available_id()
   local id = 1
 
-  while M._terminals[id] ~= nil do
+  while _terminals[id] ~= nil do
     id = id + 1
   end
 
   return id
+end
+
+---Updates the winbar of all open terminal windows
+local function update_winbars()
+  local all_ids = {}
+
+  for id, _ in pairs(_terminals) do
+    table.insert(all_ids, id)
+  end
+
+  table.sort(all_ids)
+
+  if #all_ids == 0 then
+    return
+  end
+
+  for _, term in pairs(_terminals) do
+    for _, win in ipairs(term:wins()) do
+      local winbar_parts = {}
+
+      for _, id in ipairs(all_ids) do
+        if id == term.id then
+          table.insert(winbar_parts, "%#TermTabActive#  [" .. id .. "] ")
+        else
+          table.insert(winbar_parts, "%#TermTabInactive#  [" .. id .. "] ")
+        end
+      end
+
+      vim.wo[win].winbar = table.concat(winbar_parts) .. "%#Normal#"
+    end
+  end
 end
 
 ---Returns the list of terminals, with an option to filter for only those with a valid window.
@@ -30,7 +61,7 @@ function M.list(opts)
   opts = opts or {}
   local list = {}
 
-  for _, term in pairs(M._terminals) do
+  for _, term in pairs(_terminals) do
     if not opts.active_only or term:is_open() then
       table.insert(list, term)
     end
@@ -43,7 +74,7 @@ end
 ---@param buf integer Buffer ID
 ---@return Terminal|nil
 function M.find_by_buf(buf)
-  for _, term in pairs(M._terminals) do
+  for _, term in pairs(_terminals) do
     if term.buf == buf then
       return term
     end
@@ -68,7 +99,7 @@ function M.open(opts)
   })
 
   if id then
-    targ_term = M._terminals[id]
+    targ_term = _terminals[id]
   end
 
   if not targ_term then
@@ -106,7 +137,7 @@ function M.close(opts)
   local targ_term = nil
 
   if id then
-    targ_term = M._terminals[id]
+    targ_term = _terminals[id]
 
     if not targ_term or not targ_term:is_open() then
       return false
@@ -136,24 +167,24 @@ function M.toggle(opts)
   local targ_term = nil
 
   if id then
-    targ_term = M._terminals[id]
+    targ_term = _terminals[id]
 
     if targ_term and targ_term:is_open() then
       M.close({ id = id })
     else
       M.open({ id = id })
     end
-  elseif #M._terminals < 1 then
+  elseif #_terminals < 1 then
     M.open()
   else
     local active_terminals = M.list({ active_only = true })
     local close = #active_terminals > 0
 
     if close then
-      M._togglable_terminals = active_terminals
+      _togglable_terminals = active_terminals
     end
 
-    for i, term in ipairs(M._togglable_terminals) do
+    for i, term in ipairs(_togglable_terminals) do
       if close then
         term:close()
       else
@@ -182,11 +213,11 @@ function M.new(opts)
     id = id,
     cmd = opts.cmd,
     on_exit = function(term)
-      M._terminals[term.id] = nil
+      _terminals[term.id] = nil
     end
   })
 
-  M._terminals[term.id] = term
+  _terminals[term.id] = term
 
   return term
 end
@@ -195,6 +226,17 @@ end
 ---@param opts? table
 function M.setup(opts)
   opts = opts or {}
+
+  vim.api.nvim_create_autocmd({
+    "BufWinEnter",
+    "BufWinLeave",
+    "WinEnter",
+    "WinLeave"
+  }, {
+    callback = function()
+      update_winbars()
+    end
+  })
 end
 
 return M

@@ -152,7 +152,6 @@ vim.keymap.set('n', '<leader>RS', function()
   vim.cmd('restart source ' .. vim.fn.fnameescape(session))
 end, { desc = 'Restart Neovim' })
 
-
 -- TermNvim
 local term = require("term")
 term.setup()
@@ -166,3 +165,10 @@ end, { silent = false, desc = "Open terminal" })
 keymap_set({ "n", "t" }, "<leader>tc", function()
   term.close({ id = vim.v.count })
 end, { silent = false, desc = "Close terminal" })
+
+-- local hl = function(group, opts)
+--   vim.api.nvim_set_hl(0, group, opts)
+-- end
+-- 
+-- hl("TermTabActive", { bg = "#FF0000" })
+-- hl("TermTabInactive", { bg = "#000000" })
