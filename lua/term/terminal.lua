@@ -1,4 +1,3 @@
-local utils = require("term.utils")
 local vim = vim
 
 ---@class Terminal
@@ -92,7 +91,6 @@ function Terminal:open(opts)
   end
 
   vim.cmd("stopinsert")
-  vim.cmd("startinsert")
 end
 
 ---Hides the terminal by closing or unlinking the window without destroying the buffer
