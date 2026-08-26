@@ -182,7 +182,7 @@ function M.new(opts)
     id = id,
     cmd = opts.cmd,
     on_exit = function(term)
-      table.remove(M._terminals, term.id)
+      M._terminals[term.id] = nil
     end
   })
 

@@ -10,7 +10,7 @@ local Terminal = {}
 Terminal.__index = Terminal
 
 ---Constructor to create a new Terminal instance using a parameter dictionary
----@param opts { id: integer, cmd?: string, on_exit?: function } Terminal configuration dictionary
+---@param opts { id: integer, cmd?: string, on_exit?: function }
 ---@return Terminal
 function Terminal:new(opts)
   opts = opts or {}
@@ -46,7 +46,7 @@ function Terminal:is_open()
 end
 
 ---Creates or opens the terminal in a specific window or in a split
----@param opts? { win?: integer, create_win?: boolean, split?: string } Target window ID
+---@param opts? { win?: integer, create_win?: boolean, split?: string }
 function Terminal:open(opts)
   opts = opts or {}
   local target_win = opts.win
