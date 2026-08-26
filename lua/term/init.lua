@@ -43,13 +43,13 @@ local function update_winbars()
 
       for _, id in ipairs(all_ids) do
         if id == term.id then
-          table.insert(winbar_parts, "%#TermTabActive#  [" .. id .. "] ")
+          table.insert(winbar_parts, "%#TermTabActive#   [" .. id .. "] ")
         else
           table.insert(winbar_parts, "%#TermTabInactive#  [" .. id .. "] ")
         end
       end
 
-      vim.wo[win].winbar = table.concat(winbar_parts) .. "%#Normal#"
+      vim.wo[win].winbar = table.concat(winbar_parts) .. "%#TermTabFill#"
     end
   end
 end
