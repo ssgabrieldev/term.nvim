@@ -198,7 +198,7 @@ function M.toggle(opts)
 end
 
 ---Create new terminal
----@param opts? { cmd?: string, id?: integer }
+---@param opts? { cmd?: string, id?: integer, on_exit?: function }
 ---@return Terminal
 function M.new(opts)
   opts = opts or {}
@@ -214,6 +214,10 @@ function M.new(opts)
     cmd = opts.cmd,
     on_exit = function(term)
       _terminals[term.id] = nil
+
+      if opts.on_exit then
+        opts.on_exit(term)
+      end
     end
   })
 
