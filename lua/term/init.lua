@@ -42,10 +42,14 @@ local function update_winbars()
       local winbar_parts = {}
 
       for _, id in ipairs(all_ids) do
+        local win_term = _terminals[id]
+        local cmd_name = win_term and win_term.cmd or "shell"
+        cmd_name = vim.fn.fnamemodify(cmd_name, ":t")
+
         if id == term.id then
-          table.insert(winbar_parts, "%#TermTabActive#   [" .. id .. "] ")
+          table.insert(winbar_parts, "%#TermTabActive#    " .. cmd_name .. " [" .. id .. "]  ")
         else
-          table.insert(winbar_parts, "%#TermTabInactive#   [" .. id .. "] ")
+          table.insert(winbar_parts, "%#TermTabInactive#    " .. cmd_name .. " [" .. id .. "]  ")
         end
       end
 
