@@ -41,16 +41,26 @@ local function update_winbars()
     for _, win in ipairs(term:wins()) do
       local winbar_parts = {}
 
-      for _, id in ipairs(all_ids) do
+      for id_idx, id in ipairs(all_ids) do
+        local is_term = id == term.id
+        local fill_separator_hl = is_term and "%#TermTabFillSeparator#▏" or "%#TermTabFillSeparator#▏"
         local win_term = _terminals[id]
         local cmd_name = win_term and win_term.cmd or "shell"
         cmd_name = vim.fn.fnamemodify(cmd_name, ":t")
+        local tab_str = ""
 
-        if id == term.id then
-          table.insert(winbar_parts, "%#TermTabActiveSeparator#▏%#TermTabActive#  " .. cmd_name .. " [" .. id .. "] %#TermTabActiveSeparator#▕")
+
+        if is_term then
+          tab_str = "%#TermTabActiveSeparator#▏%#TermTabActive#  " .. cmd_name .. " [" .. id .. "] %#TermTabActiveSeparator#▕"
         else
-          table.insert(winbar_parts, "%#TermTabInactiveSeparator#▏%#TermTabInactive#  " .. cmd_name .. " [" .. id .. "]  %#TermTabInactiveSeparator#▕")
+          tab_str = "%#TermTabInactiveSeparator#▏%#TermTabInactive#  " .. cmd_name .. " [" .. id .. "] %#TermTabInactiveSeparator#▕"
         end
+
+        if id_idx == #all_ids then
+          tab_str = tab_str .. fill_separator_hl
+        end
+
+        table.insert(winbar_parts, tab_str)
       end
 
       vim.wo[win].winbar = table.concat(winbar_parts) .. "%#TermTabFill#"
