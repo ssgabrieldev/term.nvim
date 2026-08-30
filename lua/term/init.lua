@@ -234,6 +234,8 @@ function M.new(opts)
     on_exit = function(term)
       _terminals[term.id] = nil
 
+      update_winbars()
+
       if opts.on_exit then
         opts.on_exit(term)
       end
@@ -254,6 +256,9 @@ function M.setup(opts)
     "BufWinEnter",
     "BufWinLeave",
     "WinEnter",
+    "WinClosed",
+    "TermClose",
+    "WinNew",
     "WinLeave"
   }, {
     callback = function()
