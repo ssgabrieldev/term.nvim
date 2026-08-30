@@ -45,7 +45,7 @@ local function update_winbars()
         if id == term.id then
           table.insert(winbar_parts, "%#TermTabActive#   [" .. id .. "] ")
         else
-          table.insert(winbar_parts, "%#TermTabInactive#  [" .. id .. "] ")
+          table.insert(winbar_parts, "%#TermTabInactive#   [" .. id .. "] ")
         end
       end
 
