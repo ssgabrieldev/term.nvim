@@ -3,229 +3,57 @@ local vim = vim
 
 local M = {}
 
----Internal table to map the numeric ID to its respective Terminal instance
+local _opts = {}
+
 ---@type table<integer, Terminal>
-local _terminals = {}
+local _terms = {}
 
----Internal table to save last openeds terminals
----@type table<Terminal>
-local _togglable_terminals = {}
-
----Internal table to map the numeric ID to its respective Terminal instance
----@return integer
-local function get_available_id()
-  local id = 1
-
-  while _terminals[id] ~= nil do
-    id = id + 1
-  end
-
-  return id
-end
-
----Updates the winbar of all open terminal windows
-local function update_winbars()
-  local all_ids = {}
-
-  for id, _ in pairs(_terminals) do
-    table.insert(all_ids, id)
-  end
-
-  table.sort(all_ids)
-
-  if #all_ids == 0 then
-    return
-  end
-
-  for _, term in pairs(_terminals) do
-    for _, win in ipairs(term:wins()) do
-      local winbar_parts = {}
-
-      ---@diagnostic disable-next-line: unused-local
-      for id_idx, id in ipairs(all_ids) do
-        local is_term = id == term.id
-        local win_term = _terminals[id]
-        local cmd_name = win_term and win_term.cmd or "shell"
-        cmd_name = vim.fn.fnamemodify(cmd_name, ":t")
-        local tab_str = ""
-
-
-        if is_term then
-          tab_str = "%#TermTabActive#  " .. cmd_name .. " [" .. id .. "] "
-        else
-          tab_str = "%#TermTabInactive#  " .. cmd_name .. " [" .. id .. "] "
-        end
-
-        table.insert(winbar_parts, tab_str)
-      end
-
-      vim.wo[win].winbar = table.concat(winbar_parts) .. "%#TermTabFill#"
-    end
-  end
-end
-
----Returns the list of terminals, with an option to filter for only those with a valid window.
----@param opts? { active_only?: boolean }
----@return Terminal[]
-function M.list(opts)
-  opts = opts or {}
-  local list = {}
-
-  for _, term in pairs(_terminals) do
-    if not opts.active_only or term:is_open() then
-      table.insert(list, term)
-    end
-  end
-
-  return list
-end
-
----Finds a terminal instance by its buffer ID
----@param buf integer Buffer ID
----@return Terminal|nil
-function M.find_by_buf(buf)
-  for _, term in pairs(_terminals) do
-    if term.buf == buf then
+---@param id integer
+---@return Terminal?
+local function term_find_by_id(id)
+  ---@diagnostic disable-next-line: unused-local
+  for i, term in ipairs(_terms) do
+    if id == term.id then
       return term
     end
   end
-
-  return nil
 end
 
----Opens a terminal by ID or based on the current buffer/active state
----@param opts? { id?: integer, win?: integer }
----@return Terminal
-function M.open(opts)
-  opts = opts or {}
-  local id = (opts.id ~= nil and opts.id > 0) and opts.id or nil
-  local curr_win = vim.api.nvim_get_current_win()
-  local curr_buf = vim.api.nvim_get_current_buf()
-  local curr_term = M.find_by_buf(curr_buf)
-  local targ_term = nil
-  local targ_win = nil
-  local active_terminals = M.list({
-    active_only = true,
-  })
-
-  if id then
-    targ_term = _terminals[id]
-  end
-
-  if not targ_term then
-    targ_term = M.new({ id = id })
-  end
-
-  if curr_term then
-    targ_win = curr_win
-  else
-    curr_term = active_terminals[1]
-
-    if curr_term then
-      targ_win = curr_term:wins()[1]
-    end
-  end
-
-  targ_win = opts.win or targ_win
-  targ_term:open({ win = targ_win })
-
-  if #active_terminals == 0 then
-    vim.cmd("wincmd J")
-  end
-
-  return targ_term
-end
-
----Closes a terminal by ID or based on the current buffer
----@param opts? { id?: integer } Dicionário de opções
-function M.close(opts)
-  opts = opts or {}
-  local id = (opts.id ~= nil and opts.id > 0) and opts.id or nil
-  local curr_win = vim.api.nvim_get_current_win()
-  local curr_buf = vim.api.nvim_get_current_buf()
-  local curr_term = M.find_by_buf(curr_buf)
-  local targ_term = nil
-
-  if id then
-    targ_term = _terminals[id]
-
-    if not targ_term or not targ_term:is_open() then
-      return false
-    else
-      ---TODO: give the user the possibility to choose between close all or only one window
-      targ_term:close()
-
-      return true
-    end
-  end
-
-  if curr_term then
-    curr_term:close({ win = curr_win })
-
-    return true
-  end
-
-  ---TODO: give the user the possibility to choose wich window to close
-  return false
-end
-
----Toggles terminal visibility by ID or based on the current buffer
----@param opts { id?:  integer }
-function M.toggle(opts)
-  opts = opts or {}
-  local id = (opts.id ~= nil and opts.id > 0) and opts.id or nil
-  local targ_term = nil
-
-  if id then
-    targ_term = _terminals[id]
-
-    if targ_term and targ_term:is_open() then
-      M.close({ id = id })
-    else
-      M.open({ id = id })
-    end
-  elseif #_terminals < 1 then
-    M.open()
-  else
-    local active_terminals = M.list({ active_only = true })
-    local close = #active_terminals > 0
-
-    if close then
-      _togglable_terminals = active_terminals
-    end
-
-    for i, term in ipairs(_togglable_terminals) do
-      if close then
-        term:close()
-      else
-        if i > 1 then
-          vim.cmd("wincmd b")
-        end
-        term:open({ split = (i == 1) and "below" or "right" })
-      end
+---@param id integer
+---@return Terminal?
+local function term_remove_by_id(id)
+  for i, term in ipairs(_terms) do
+    if term.id == id then
+      return table.remove(_terms, i)
     end
   end
 end
 
----Create new terminal
+---@return integer
+local function term_next_id()
+  local id = 1
+
+  while true do
+    local term = term_find_by_id(id)
+
+    if not term then
+      return id
+    end
+
+    id = id + 1
+  end
+end
+
 ---@param opts? { cmd?: string, id?: integer, on_exit?: function }
 ---@return Terminal
 function M.new(opts)
-  opts = opts or {}
-
-  local id = opts.id
-
-  if not id then
-    id = get_available_id()
-  end
+  opts = vim.tbl_extend("force", _opts.terminal, opts)
 
   local term = Terminal:new({
-    id = id,
+    id = opts.id or term_next_id(),
     cmd = opts.cmd,
     on_exit = function(term)
-      _terminals[term.id] = nil
-
-      update_winbars()
+      term_remove_by_id(term.id)
 
       if opts.on_exit then
         opts.on_exit(term)
@@ -233,29 +61,36 @@ function M.new(opts)
     end
   })
 
-  _terminals[term.id] = term
+  table.insert(_terms, term)
 
   return term
 end
 
----Global plugin configuration
+---@param opts? { cmd?: string, id?: integer, on_exit?: function }
+---@return Terminal
+function M.toggle(opts)
+  opts = vim.tbl_extend("force", _opts.terminal, opts)
+
+  local term = term_find_by_id(opts.id)
+
+  if not term then
+    term = M.new(opts)
+  end
+
+  if term:is_open() then
+    term:close()
+
+    return term
+  end
+
+  term:open()
+
+  return term
+end
+
 ---@param opts? table
 function M.setup(opts)
-  opts = opts or {}
-
-  vim.api.nvim_create_autocmd({
-    "BufWinEnter",
-    "BufWinLeave",
-    "WinEnter",
-    "WinClosed",
-    "TermClose",
-    "WinNew",
-    "WinLeave"
-  }, {
-    callback = function()
-      update_winbars()
-    end
-  })
+  _opts = vim.tbl_extend("force", { terminal = {} }, opts)
 end
 
 return M
