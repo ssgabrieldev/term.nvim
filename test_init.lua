@@ -157,5 +157,5 @@ term.setup({
 })
 
 keymap_set({ "n", "t" }, "<leader>tt", function()
-  term.toggle({ id = vim.v.count })
+  term.toggle_panels({ id = vim.v.count })
 end, { silent = false, desc = "Toggle terminal" })
