@@ -37,7 +37,9 @@ function Window:set_term(term)
   self.term = term
 
   if self.id then
+    vim.api.nvim_set_option_value("winfixbuf", false, { win = self.id })
     vim.api.nvim_win_set_buf(self.id, self.term.buf)
+    vim.api.nvim_set_option_value("winfixbuf", true, { win = self.id })
   end
 end
 
@@ -55,12 +57,10 @@ function Window:open()
   self.destroy = true
 
   if not self:is_open() then
-    vim.api.nvim_set_option_value("winfixbuf", false, { win = self.id })
     self.id = vim.api.nvim_open_win(self.term.buf, true, {
       split = "below",
       vertical = false,
     })
-    vim.api.nvim_set_option_value("winfixbuf", true, { win = self.id })
   end
 end
 
