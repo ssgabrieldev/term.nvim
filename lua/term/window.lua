@@ -39,7 +39,7 @@ end
 function Window:set_term(term)
   self.term = term
 
-  if self.id then
+  if self:is_open() then
     vim.wo[self.id].winfixbuf = false
     vim.api.nvim_win_set_buf(self.id, self.term.buf)
     vim.wo[self.id].winfixbuf = true
