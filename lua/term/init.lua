@@ -116,6 +116,10 @@ function M.open(opts)
 
   window:set_term(term)
 
+  if not window:is_open() then
+    window:open()
+  end
+
   return term
 end
 
