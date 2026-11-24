@@ -35,6 +35,10 @@ function Terminal:new(opts)
         if opts.on_exit then
           opts.on_exit(instance)
         end
+
+        for index, win in ipairs(instance:wins()) do
+          vim.api.nvim_win_close(win, true)
+        end
       end,
     })
   end)

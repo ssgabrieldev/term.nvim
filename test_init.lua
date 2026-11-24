@@ -183,5 +183,6 @@ vim.keymap.set({ "n", "t" }, "<leader>tg", function()
     lazygit.win:set_term(lazygit.term)
   end
 
+  lazygit.win:set_term(lazygit.term)
   lazygit.win:toggle()
 end, { desc = "Toggle Lazy Git", silent = true })
