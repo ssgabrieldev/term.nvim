@@ -6,21 +6,24 @@
 local Window = {}
 Window.__index = Window
 
----@param terms Terminal[]
----@param on_win_close function(window Window)
+---@param on_win_close? function(window Window)
 ---@return Window
-function Window:new(terms, on_win_close)
+function Window:new(on_win_close)
+  on_win_close = on_win_close or function(window) end
+
   local instance = setmetatable({
     id = nil,
     aucmdid = nil,
-    terms = terms,
+    term = nil,
     destroy = false,
   }, self)
 
   instance.aucmdid = vim.api.nvim_create_autocmd("WinClosed", {
     callback = function(args)
       if instance.id and tonumber(args.match) == instance.id then
-        on_win_close(instance)
+        if on_win_close then
+          on_win_close(instance)
+        end
 
         if instance.destroy then
           instance:remove_events()
@@ -37,9 +40,10 @@ function Window:set_term(term)
   self.term = term
 
   if self.id then
-    vim.api.nvim_set_option_value("winfixbuf", false, { win = self.id })
+    vim.wo[self.id].winfixbuf = false
     vim.api.nvim_win_set_buf(self.id, self.term.buf)
-    vim.api.nvim_set_option_value("winfixbuf", true, { win = self.id })
+    vim.wo[self.id].winfixbuf = true
+    vim.wo[self.id].number = false
   end
 end
 
@@ -62,6 +66,10 @@ function Window:open()
       vertical = false,
     })
   end
+
+  vim.wo[self.id].winfixbuf = true
+  vim.wo[self.id].number = false
+  vim.wo[self.id].relativenumber = false
 end
 
 ---@return nil

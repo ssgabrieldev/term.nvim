@@ -123,7 +123,7 @@ end
 function M.new_window(opts)
   opts = opts or {}
 
-  local window = Window:new(M.terms, function(window)
+  local window = Window:new(function(window)
     if window.destroy then
       window_remove_by_id(window.id)
     end

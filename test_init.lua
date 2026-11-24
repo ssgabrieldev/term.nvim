@@ -151,17 +151,37 @@ vim.keymap.set('n', '<leader>RS', function()
 end, { desc = 'Restart Neovim' })
 
 -- TermNvim
-local term = require("term")
-term.setup({
-  cmd = ""
-})
+local lazygit = { term = nil, win = nil }
+-- local vimongo = nil
 
-keymap_set({ "n", "t" }, "<leader>tt", function()
-  term.toggle_windows({ id = vim.v.count })
-end, { silent = false })
-keymap_set({ "n", "t" }, "<leader>tn", function()
+local term = require("term")
+
+term.setup({})
+
+vim.keymap.set({ "n", "t" }, "<leader>tn", function()
   term.new_window({ id = vim.v.count })
-end, { silent = false })
-keymap_set({ "n", "t" }, "<leader>to", function()
+end, { desc = "New terminal window", silent = true })
+vim.keymap.set({ "n", "t" }, "<leader>tt", function()
+  term.toggle_windows()
+end, { desc = "Toggle terminals", silent = true })
+vim.keymap.set({ "n", "t" }, "<leader>to", function()
   term.open({ id = vim.v.count })
-end, { silent = false })
+end, { desc = "Open terminal", silent = true })
+vim.keymap.set({ "n", "t" }, "<leader>tg", function()
+  if lazygit.term == nil then
+    lazygit.term = require("term.terminal"):new({
+      id = 1000,
+      cmd = "lg",
+      on_exit = function()
+        lazygit.term = nil
+      end
+    })
+  end
+
+  if not lazygit.win then
+    lazygit.win = require("term.window"):new()
+    lazygit.win:set_term(lazygit.term)
+  end
+
+  lazygit.win:toggle()
+end, { desc = "Toggle Lazy Git", silent = true })
