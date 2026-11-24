@@ -5,6 +5,7 @@ local Picker = require("term.picker")
 ---@class OptsOpenTerm
 ---@field id? integer
 ---@field cmd? string
+---@field on_exit? function(terminal Terminal)
 
 ---@class Term
 ---@field opts table
@@ -83,6 +84,10 @@ function M.new(opts)
     id = (opts.id and opts.id > 0) and opts.id or term_next_id(),
     cmd = opts.cmd,
     on_exit = function(term)
+      if opts.on_exit then
+        opts.on_exit(term)
+      end
+
       term_remove_by_id(term.id)
     end
   })
