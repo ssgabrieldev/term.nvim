@@ -157,5 +157,11 @@ term.setup({
 })
 
 keymap_set({ "n", "t" }, "<leader>tt", function()
-  term.toggle_panels({ id = vim.v.count })
-end, { silent = false, desc = "Toggle terminal" })
+  term.toggle_windows({ id = vim.v.count })
+end, { silent = false })
+keymap_set({ "n", "t" }, "<leader>tn", function()
+  term.new_window({ id = vim.v.count })
+end, { silent = false })
+keymap_set({ "n", "t" }, "<leader>to", function()
+  term.open({ id = vim.v.count })
+end, { silent = false })

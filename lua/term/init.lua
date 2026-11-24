@@ -1,5 +1,6 @@
 local Terminal = require("term.terminal")
-local Panel = require("term.panel")
+local Window = require("term.window")
+local Picker = require("term.picker")
 
 ---@class OptsOpenTerm
 ---@field id? integer
@@ -8,12 +9,14 @@ local Panel = require("term.panel")
 ---@class Term
 ---@field opts table
 ---@field terms Terminal[]
----@field panels Panel[]
+---@field windows Window[]
 local M = {
   opts = {},
   terms = {},
-  panels = {}
+  windows = {}
 }
+
+local picker = Picker:new(M.windows)
 
 ---@param id integer
 ---@return Terminal?
@@ -36,12 +39,22 @@ local function term_remove_by_id(id)
   end
 end
 
----@param panel Panel
----@return Panel?
-local function panel_remove(panel)
-  for i, pan in ipairs(M.panels) do
-    if pan == panel then
-      return table.remove(M.panels, i)
+---@param id integer
+---@return Window?
+local function window_find_by_id(id)
+  for i, window in ipairs(M.windows) do
+    if window.id == id then
+      return M.windows[i]
+    end
+  end
+end
+
+---@param id integer
+---@return Window?
+local function window_remove_by_id(id)
+  for i, window in ipairs(M.windows) do
+    if window.id == id then
+      return table.remove(M.windows, i)
     end
   end
 end
@@ -76,17 +89,6 @@ function M.new(opts)
 
   table.insert(M.terms, term)
 
-  if #M.panels > 0 then
-    ---@diagnostic disable-next-line: unused-local
-    for index, panel in ipairs(M.panels) do
-      if panel:is_open() then
-        panel:set_term(term)
-
-        break
-      end
-    end
-  end
-
   return term
 end
 
@@ -100,28 +102,30 @@ function M.open(opts)
     term = M.new(opts)
   end
 
-  local panel = M.panels[1]
-  if not panel then
-    panel = M.new_panel(opts)
+  local window = M.windows[1]
+  if not window then
+    window = M.new_window(opts)
+  elseif #M.windows > 1 then
+    window = picker:pick() or window
   end
 
-  panel:set_term(term)
+  window:set_term(term)
 
   return term
 end
 
 ---@param opts? OptsOpenTerm
-function M.new_panel(opts)
+function M.new_window(opts)
   opts = opts or {}
 
-  local panel = Panel:new(M.terms, function(panel)
-    if panel.destroy then
-      panel_remove(panel)
+  local window = Window:new(M.terms, function(window)
+    if window.destroy then
+      window_remove_by_id(window.id)
     end
   end)
 
-  local term = nil
-
+  ---@type Terminal?
+  local term
   if opts.id then
     term = term_find_by_id(opts.id)
   else
@@ -133,25 +137,40 @@ function M.new_panel(opts)
     term = M.new(term_opts)
   end
 
-  table.insert(M.panels, panel)
+  table.insert(M.windows, window)
 
-  panel:set_term(term)
-  panel:open()
+  window:set_term(term)
+  window:open()
 
-  return panel
+  ---@type Window[]
+  local windows_to_remove = {}
+  ---@diagnostic disable-next-line: unused-local
+  for index, win in ipairs(M.windows) do
+    if not win:is_open() then
+      table.insert(windows_to_remove, win)
+    end
+  end
+
+  ---@diagnostic disable-next-line: unused-local
+  for index, win in ipairs(windows_to_remove) do
+    window_remove_by_id(win.id)
+    win:remove_events()
+  end
+
+  return window
 end
 
 ---@param opts? OptsOpenTerm
-function M.toggle_panels(opts)
-  if #M.panels == 0 then
-    M.new_panel(opts)
+function M.toggle_windows(opts)
+  if #M.windows == 0 then
+    M.new_window(opts)
 
     return
   end
 
   ---@diagnostic disable-next-line: unused-local
-  for index, panel in ipairs(M.panels) do
-    panel:toggle()
+  for index, window in ipairs(M.windows) do
+    window:toggle()
   end
 end
 
