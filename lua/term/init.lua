@@ -123,6 +123,27 @@ function M.open(opts)
   return term
 end
 
+---@return nil
+function M.pick()
+  if #M.terms == 0 then
+    vim.notify("No terminals available", vim.log.levels.WARN)
+    return
+  end
+
+  vim.ui.select(M.terms, {
+    prompt = "Select a terminal:",
+    format_item = function(term)
+      return string.format("Terminal #%d", term.id)
+    end,
+  }, function(term)
+    if not term then
+      return
+    end
+
+    M.open({ id = term.id })
+  end)
+end
+
 ---@param opts? OptsOpenTerm
 function M.new_window(opts)
   opts = opts or {}

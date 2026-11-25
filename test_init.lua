@@ -167,6 +167,9 @@ end, { desc = "Toggle terminals", silent = true })
 vim.keymap.set({ "n", "t" }, "<leader>to", function()
   term.open({ id = vim.v.count })
 end, { desc = "Open terminal", silent = true })
+vim.keymap.set({ "n", "t" }, "<leader>tp", function()
+  term.pick()
+end, { desc = "Pick terminal", silent = true })
 vim.keymap.set({ "n", "t" }, "<leader>tg", function()
   if lazygit.term == nil then
     lazygit.term = require("term.terminal"):new({
