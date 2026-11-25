@@ -2,18 +2,19 @@
 
 Plugin para [Neovim](https://neovim.io/) que gerencia múltiplas instâncias de terminal em buffers e permite exibi-las em janelas divididas (*splits*).
 
-Com o `term.nvim`, você pode criar terminais independentes, reutilizar instâncias por identificador, abrir um terminal em diferentes janelas e alternar a visibilidade das janelas gerenciadas.
+O plugin oferece uma API Lua para criar e reutilizar terminais, abrir janelas associadas a eles, alternar a visibilidade dessas janelas e selecionar uma instância existente.
 
 ## Funcionalidades
 
 - Gerenciamento de múltiplas instâncias de terminal.
-- Criação de buffers de terminal com `jobstart()`.
-- Reutilização de instâncias por meio de identificadores (`id`).
+- Criação de buffers de terminal e processos por meio de `jobstart()`.
+- Reutilização de instâncias por identificador (`id`).
 - Abertura de terminais em splits horizontais abaixo da janela atual.
-- Criação de múltiplas janelas para exibir terminais.
-- Seletor interativo para escolher uma janela quando há mais de uma disponível.
+- Criação de várias janelas gerenciadas, associadas a instâncias de terminal.
+- Seleção de uma janela para receber um terminal quando há várias janelas gerenciadas.
+- Seleção interativa de uma instância de terminal por meio de `vim.ui.select()`.
 - Alternância da visibilidade das janelas gerenciadas.
-- Callback `on_exit` para reagir ao encerramento de um processo.
+- Callback `on_exit` quando o processo de uma instância termina.
 - Fechamento das janelas associadas quando o processo do terminal termina.
 
 ## Requisitos
@@ -21,7 +22,7 @@ Com o `term.nvim`, você pode criar terminais independentes, reutilizar instânc
 - Neovim com suporte às APIs utilizadas pelo plugin.
 - Um shell ou executável de terminal disponível no ambiente.
 
-> O comando padrão utilizado é o valor de `vim.o.shell`.
+O comando padrão é obtido de `vim.o.shell`. Não há uma versão mínima do Neovim declarada pelo projeto.
 
 ## Instalação
 
@@ -42,37 +43,33 @@ Com outro gerenciador de plugins, instale o repositório e execute `require("ter
 
 ## Configuração
 
-A função `setup()` deve ser chamada antes das demais funções do módulo. Ela recebe uma tabela de opções.
+Chame `setup()` antes das demais funções do módulo. A função recebe uma tabela de opções; use uma tabela vazia quando não precisar personalizar o comando padrão.
 
-Para utilizar o shell padrão do Neovim:
+Para utilizar o shell configurado no Neovim:
 
 ```lua
-require("term").setup({})
+local term = require("term")
+
+term.setup({})
 ```
 
 Para definir um comando padrão para novas instâncias:
 
 ```lua
-require("term").setup({
+term.setup({
   term = {
     cmd = "bash",
   },
 })
 ```
 
-A opção `term.cmd` é utilizada quando uma nova instância é criada sem um comando específico.
+A opção `term.cmd` é usada quando uma nova instância é criada sem um `cmd` específico.
 
 ## Uso
 
-Após configurar o plugin, carregue o módulo:
-
-```lua
-local term = require("term")
-```
-
 ### Abrir um terminal
 
-A função `open()` abre um terminal em uma janela gerenciada. Se o identificador informado já existir, a instância será reutilizada; caso contrário, uma nova será criada.
+`open()` abre uma instância em uma janela gerenciada. Se o `id` informado corresponder a uma instância existente, ela será reutilizada; caso contrário, uma nova instância será criada.
 
 ```lua
 -- Cria e abre um terminal usando vim.o.shell.
@@ -85,15 +82,15 @@ term.open({ id = 2 })
 term.open({ cmd = "lazygit" })
 ```
 
-Quando existem várias janelas gerenciadas, o seletor interativo permite escolher onde exibir o terminal:
+Quando há mais de uma janela gerenciada, o plugin apresenta um seletor temporário na `winbar`:
 
-- Pressione uma tecla de `1` a `9` para selecionar a janela correspondente.
-- Pressione `Esc` para sair do seletor. Nesse caso, `open()` utiliza a primeira janela como alternativa.
-- O seletor suporta no máximo nove janelas.
+- Pressione uma tecla de `1` a `9` para escolher a janela correspondente.
+- Pressione `Esc` para sair do seletor; nesse caso, `open()` utiliza a primeira janela como alternativa.
+- O seletor aceita no máximo nove janelas.
 
-### Criar um terminal
+### Criar uma instância de terminal
 
-A função `new()` cria uma instância de terminal sem abrir uma janela para ela. O processo é iniciado imediatamente e o objeto da instância é retornado.
+`new()` cria uma instância sem abrir uma janela gerenciada. O processo é iniciado imediatamente e o objeto da instância é retornado.
 
 ```lua
 local terminal = term.new({
@@ -102,11 +99,11 @@ local terminal = term.new({
 })
 ```
 
-Os campos são opcionais:
+Opções aceitas:
 
-- `id`: identificador da instância. Quando omitido ou não positivo, um identificador disponível é gerado automaticamente.
-- `cmd`: comando executado no terminal. Quando omitido, utiliza `vim.o.shell`.
-- `on_exit`: função chamada quando o processo do terminal termina. Recebe a instância encerrada como argumento.
+- `id`: identificador da instância. Se omitido ou não positivo, um identificador disponível é gerado automaticamente.
+- `cmd`: comando executado no terminal. Se omitido, utiliza `vim.o.shell` ou o valor padrão configurado em `term.cmd`.
+- `on_exit`: função chamada quando o processo termina. Recebe a instância encerrada como argumento.
 
 Exemplo com callback:
 
@@ -121,10 +118,10 @@ local terminal = term.new({
 
 ### Criar uma janela
 
-A função `new_window()` cria uma janela dividida horizontalmente abaixo da janela atual e associa um terminal a ela.
+`new_window()` cria uma janela dividida horizontalmente abaixo da janela atual e associa uma instância de terminal a ela.
 
 ```lua
--- Utiliza o primeiro terminal disponível ou cria um novo.
+-- Usa o primeiro terminal registrado ou cria um novo.
 local window = term.new_window()
 ```
 
@@ -134,11 +131,21 @@ Para associar uma instância específica:
 term.new_window({ id = 2 })
 ```
 
-Se o identificador informado não corresponder a uma instância existente, uma nova instância será criada.
+Se o `id` não corresponder a uma instância existente, uma nova instância será criada usando as opções recebidas e a configuração padrão.
+
+### Selecionar uma instância de terminal
+
+`pick()` abre o seletor da interface `vim.ui.select()` com as instâncias registradas. Ao selecionar uma delas, o plugin chama `open()` para exibi-la.
+
+```lua
+term.pick()
+```
+
+Se não houver instâncias registradas, o plugin exibe a notificação `No terminals available`.
 
 ### Alternar as janelas
 
-A função `toggle_windows()` alterna a visibilidade de todas as janelas gerenciadas pelo plugin. Se nenhuma janela tiver sido criada, uma nova será aberta.
+`toggle_windows()` alterna a visibilidade de todas as janelas gerenciadas pelo plugin. Se ainda não houver janelas registradas, cria uma.
 
 ```lua
 term.toggle_windows()
@@ -151,20 +158,21 @@ term.toggle_windows()
 | `setup(opts)` | Inicializa o módulo com as opções informadas. Deve ser chamada antes das demais funções. |
 | `new(opts)` | Cria uma instância de terminal e retorna seu objeto. |
 | `open(opts)` | Abre uma instância em uma janela gerenciada, criando-a quando necessário. |
-| `new_window(opts)` | Cria uma janela e associa um terminal a ela. |
-| `toggle_windows(opts)` | Alterna a visibilidade das janelas gerenciadas. Se não houver janelas, cria uma. |
+| `new_window(opts)` | Cria uma janela e associa uma instância de terminal. |
+| `pick()` | Exibe as instâncias registradas em `vim.ui.select()` e abre a selecionada. |
+| `toggle_windows(opts)` | Alterna a visibilidade das janelas gerenciadas; cria uma janela se não houver nenhuma. |
 
 ### Opções de terminal
 
-As funções `new()`, `open()` e `new_window()` recebem uma tabela com as seguintes opções:
+As funções `new()`, `open()` e `new_window()` podem receber uma tabela com estas opções:
 
 | Opção | Tipo | Descrição |
 | --- | --- | --- |
 | `id` | `integer` | Identificador da instância de terminal. |
-| `cmd` | `string` | Comando executado no terminal quando uma nova instância é criada. |
+| `cmd` | `string` | Comando executado quando uma nova instância é criada. |
 | `on_exit` | `function` | Callback executado quando o processo termina. Recebe a instância como argumento. |
 
-A opção `on_exit` é relevante quando a chamada resulta na criação de uma nova instância. Se `open()` reutilizar um terminal existente, as opções de criação não substituem as opções daquela instância.
+A opção `on_exit` é aplicada quando a chamada cria uma nova instância. Se `open()` reutilizar um terminal existente, as opções de criação não substituem as opções já associadas à instância.
 
 ### Opções de configuração
 
@@ -185,38 +193,50 @@ term.setup({
   },
 })
 
+vim.keymap.set("n", "<leader>tn", function()
+  term.new_window()
+end, { desc = "Nova janela de terminal" })
+
 vim.keymap.set("n", "<leader>tt", function()
   term.toggle_windows()
 end, { desc = "Alternar janelas de terminal" })
 
-vim.keymap.set("n", "<leader>tn", function()
+vim.keymap.set("n", "<leader>to", function()
   term.open()
 end, { desc = "Abrir terminal" })
 
-vim.keymap.set("n", "<leader>tg", function()
-  term.open({ cmd = "lazygit" })
-end, { desc = "Abrir Lazygit no terminal" })
+vim.keymap.set("n", "<leader>tp", function()
+  term.pick()
+end, { desc = "Selecionar terminal" })
 ```
 
 ## Comportamentos e limitações
 
-- Os terminais são criados em buffers do Neovim e executados como processos associados a esses buffers.
-- O shell padrão é obtido de `vim.o.shell`.
+- As instâncias são buffers do Neovim associados a processos iniciados com `jobstart()`.
+- O comando padrão é obtido de `vim.o.shell`, salvo configuração de `term.cmd`.
 - As janelas são abertas em splits horizontais abaixo da janela atual.
-- O seletor interativo suporta até nove janelas.
-- `toggle_windows()` atua somente sobre as janelas gerenciadas pelo plugin.
-- Quando um processo termina, suas janelas associadas são fechadas e a instância é removida do registro interno.
-- O plugin não configura atalhos ou comandos Ex automaticamente.
+- O seletor de janelas exibido por `open()` suporta até nove opções.
+- `pick()` seleciona uma instância de terminal; o seletor usado por `open()` seleciona uma janela. São operações diferentes.
+- `toggle_windows()` atua somente sobre as janelas registradas pelo módulo.
+- Ao terminar um processo, o callback `on_exit` é executado e as janelas que o plugin consegue localizar na tabpage atual são fechadas.
+- O plugin não registra atalhos ou comandos Ex automaticamente.
+- O projeto não declara uma versão mínima do Neovim nem apresenta, no momento, uma suíte automatizada de testes identificável. `test_init.lua` é um arquivo de configuração de desenvolvimento que prepara o ambiente e os atalhos usados localmente.
 
 ## Estrutura do projeto
 
 ```text
-lua/
-└── term/
-    ├── init.lua       # API pública e gerenciamento das instâncias
-    ├── terminal.lua  # Buffers e processos de terminal
-    ├── window.lua    # Janelas e eventos de fechamento
-    └── picker.lua    # Seleção interativa de janelas
+.
+├── lua/
+│   └── term/
+│       ├── init.lua       # API pública e gerenciamento das instâncias
+│       ├── terminal.lua   # Buffers e processos de terminal
+│       ├── window.lua     # Janelas e eventos de fechamento
+│       └── picker.lua     # Seleção interativa de janelas
+├── test_init.lua          # Configuração local de desenvolvimento
+├── doc/
+│   └── term.txt           # Arquivo de documentação Vim (atualmente vazio)
+├── LICENSE
+└── README.md
 ```
 
 ## Licença
