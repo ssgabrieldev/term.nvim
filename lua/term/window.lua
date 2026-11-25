@@ -70,6 +70,8 @@ function Window:open()
   vim.wo[self.id].winfixbuf = true
   vim.wo[self.id].number = false
   vim.wo[self.id].relativenumber = false
+
+  vim.cmd("startinsert")
 end
 
 ---@return nil

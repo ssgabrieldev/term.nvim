@@ -149,6 +149,14 @@ function M.new_window(opts)
   opts = opts or {}
 
   local window = Window:new(function(window)
+    ---@diagnostic disable-next-line: unused-local
+    for index, win in ipairs(M.windows) do
+      if win:is_open() then
+        vim.api.nvim_set_current_win(win.id)
+        break
+      end
+    end
+
     if window.destroy then
       window_remove_by_id(window.id)
     end
